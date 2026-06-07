@@ -1,0 +1,16 @@
+services:
+  postgres-fleet:
+    image: postgres:16-alpine
+    container_name: orion-fleet-db
+    environment:
+      POSTGRES_DB: orion-fleet
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5434:5432"
+    volumes:
+      - fleet_pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  fleet_pg_data:
