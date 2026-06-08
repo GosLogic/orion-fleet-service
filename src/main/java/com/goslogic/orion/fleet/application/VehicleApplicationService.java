@@ -4,6 +4,7 @@ import com.goslogic.orion.fleet.application.exception.ConflictException;
 import com.goslogic.orion.fleet.application.exception.ResourceNotFoundException;
 import com.goslogic.orion.fleet.domain.model.Vehicle;
 import com.goslogic.orion.fleet.domain.model.VehicleStatus;
+
 import com.goslogic.orion.fleet.domain.model.VehicleType;
 import com.goslogic.orion.fleet.domain.repository.VehicleRepository;
 import com.goslogic.orion.fleet.domain.repository.VehicleTypeRepository;
