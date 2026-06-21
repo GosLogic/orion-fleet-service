@@ -13,7 +13,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import com.goslogic.orion.fleet.domain.model.DriverStatus;
+
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -47,10 +50,15 @@ class DriverApplicationServiceTest {
                 .thenReturn(Optional.of(driver));
         when(driverRepository.findByUserExternalIdAndTenantExternalId("user-xxx", "tenant-demo"))
                 .thenReturn(Optional.empty());
+        when(driverRepository.findByTenantExternalId("tenant-demo")).thenReturn(List.of(driver));
     }
 
     private CreateDriverCommand cmd(String license) {
-        return new CreateDriverCommand("driver-demo", "driver-demo", "tenant-demo",
+        return cmd("driver-demo", license);
+    }
+
+    private CreateDriverCommand cmd(String externalId, String license) {
+        return new CreateDriverCommand(externalId, "driver-demo", "tenant-demo",
                 license, "A-IIIc", LocalDate.of(2027, 12, 31));
     }
 
@@ -91,5 +99,35 @@ class DriverApplicationServiceTest {
         assertThatThrownBy(() -> service.resolveByUser("user-xxx", "tenant-demo"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("user-xxx");
+    }
+
+    @Test
+    void create_genera_external_id_si_no_se_proporciona() {
+        Driver result = service.create(cmd(null, "LIC-NUEVA-001"));
+
+        assertThat(result.getExternalId()).startsWith("driver-");
+    }
+
+    @Test
+    void listByTenant_devuelve_conductores_del_tenant() {
+        List<Driver> result = service.listByTenant("tenant-demo");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().getExternalId()).isEqualTo("driver-demo");
+    }
+
+    @Test
+    void updateStatus_cambia_el_estado() {
+        Driver result = service.updateStatus("driver-demo", "tenant-demo", DriverStatus.ON_VACATION);
+
+        assertThat(result.getStatus()).isEqualTo(DriverStatus.ON_VACATION);
+        verify(driverRepository).save(driver);
+    }
+
+    @Test
+    void delete_elimina_conductor_existente() {
+        service.delete("driver-demo", "tenant-demo");
+
+        verify(driverRepository).delete(driver);
     }
 }
