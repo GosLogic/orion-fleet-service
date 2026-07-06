@@ -81,6 +81,17 @@ public class VehicleApplicationService {
                         "Vehículo no encontrado: " + externalId));
     }
 
+    /**
+     * Seam de resolución para IAM en login DRIVER: vehículo asignado al conductor.
+     */
+    @Transactional(readOnly = true)
+    public Vehicle resolveByDefaultDriver(String driverExternalId, String tenantExternalId) {
+        return vehicleRepository
+                .findByDefaultDriverExternalIdAndTenantExternalId(driverExternalId, tenantExternalId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Vehículo no encontrado para conductor: " + driverExternalId));
+    }
+
     public Vehicle updateStatus(String externalId, String tenantExternalId, VehicleStatus status) {
         Vehicle v = findByExternalId(externalId, tenantExternalId);
         v.setStatus(status);

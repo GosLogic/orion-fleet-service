@@ -17,4 +17,7 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
     boolean existsByPlate(String plate);
 
     List<Vehicle> findByTenantExternalId(String tenantExternalId);
+
+    Optional<Vehicle> findByDefaultDriverExternalIdAndTenantExternalId(
+            String defaultDriverExternalId, String tenantExternalId);
 }

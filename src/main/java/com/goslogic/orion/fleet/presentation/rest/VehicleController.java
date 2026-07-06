@@ -37,6 +37,19 @@ public class VehicleController {
                 .stream().map(VehicleResponse::from).toList());
     }
 
+    /**
+     * Seam de resolución para IAM Service en login DRIVER.
+     * GET /v1/fleet/vehicles/by-driver?driver_external_id=driver-demo
+     */
+    @GetMapping("/by-driver")
+    @Operation(summary = "Resolver vehículo asignado al conductor (seam IAM login)")
+    public ResponseEntity<VehicleResponse> resolveByDriver(
+            @RequestParam("driver_external_id") String driverExternalId,
+            @RequestHeader("X-Tenant-Id") String tenantExternalId) {
+        return ResponseEntity.ok(VehicleResponse.from(
+                vehicleService.resolveByDefaultDriver(driverExternalId, tenantExternalId)));
+    }
+
     @GetMapping("/{externalId}")
     @Operation(summary = "Obtener vehículo por ID externo (incluye resolución interna sin filtro de tenant)")
     public ResponseEntity<VehicleResponse> findByExternalId(

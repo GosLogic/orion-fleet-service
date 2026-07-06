@@ -55,6 +55,10 @@ class VehicleApplicationServiceTest {
                 .thenReturn(Optional.empty());
         when(vehicleRepository.findByTenantExternalId("tenant-demo"))
                 .thenReturn(List.of(vehicle));
+        when(vehicleRepository.findByDefaultDriverExternalIdAndTenantExternalId("driver-demo", "tenant-demo"))
+                .thenReturn(Optional.of(vehicle));
+        when(vehicleRepository.findByDefaultDriverExternalIdAndTenantExternalId("inexistente", "tenant-demo"))
+                .thenReturn(Optional.empty());
 
         VehicleType furgoneta = new VehicleType("Furgoneta", "Reparto");
         furgoneta.setId(1L);
@@ -142,6 +146,20 @@ class VehicleApplicationServiceTest {
     @Test
     void resolveByExternalId_lanza_404_si_no_existe() {
         assertThatThrownBy(() -> service.resolveByExternalId("inexistente"))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void resolveByDefaultDriver_devuelve_vehiculo_asignado() {
+        Vehicle result = service.resolveByDefaultDriver("driver-demo", "tenant-demo");
+
+        assertThat(result.getExternalId()).isEqualTo("vehicle-001");
+        assertThat(result.getDefaultDriverExternalId()).isNull();
+    }
+
+    @Test
+    void resolveByDefaultDriver_lanza_404_si_no_hay_vehiculo() {
+        assertThatThrownBy(() -> service.resolveByDefaultDriver("inexistente", "tenant-demo"))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
