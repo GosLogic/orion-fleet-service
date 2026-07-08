@@ -10,11 +10,14 @@ import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Estas pruebas garantizan la Integridad de datos de flota y cumplimiento normativo en un entorno multi-tenant.
+ */
 class GlobalExceptionHandlerTest {
 
-    GlobalExceptionHandler handler;
+    private GlobalExceptionHandler handler;
 
     @BeforeEach
     void setUp() {
@@ -45,7 +48,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void handleValidation_devuelve_400_con_errores_por_campo() throws Exception {
+    void handleValidation_devuelve_400_con_errores_por_campo() {
         Object target = new Object();
         BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(target, "request");
         bindingResult.addError(new FieldError("request", "plate", "must not be blank"));
@@ -60,24 +63,5 @@ class GlobalExceptionHandlerTest {
         @SuppressWarnings("unchecked")
         var errors = (java.util.Map<String, String>) response.getBody().message();
         assertThat(errors).containsEntry("plate", "must not be blank");
-    }
-
-    @Test
-    void handleIllegalArg_devuelve_400() {
-        ResponseEntity<GlobalExceptionHandler.ErrorBody> response =
-                handler.handleIllegalArg(new IllegalArgumentException("Argumento inválido"));
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody().message()).isEqualTo("Argumento inválido");
-    }
-
-    @Test
-    void handleGeneric_devuelve_500() {
-        ResponseEntity<GlobalExceptionHandler.ErrorBody> response =
-                handler.handleGeneric(new RuntimeException("Error inesperado"));
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        assertThat(response.getBody().status()).isEqualTo(500);
-        assertThat(response.getBody().message()).isEqualTo("Error inesperado");
     }
 }

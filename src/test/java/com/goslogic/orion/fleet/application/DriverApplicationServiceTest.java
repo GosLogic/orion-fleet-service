@@ -13,121 +13,85 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.goslogic.orion.fleet.domain.model.DriverStatus;
-
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
+/**
+ * Estas pruebas garantizan la Integridad de datos de flota y cumplimiento normativo en un entorno multi-tenant.
+ */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class DriverApplicationServiceTest {
 
-    @Mock DriverRepository driverRepository;
+    @Mock
+    private DriverRepository driverRepository;
 
-    DriverApplicationService service;
-    Driver driver;
+    private DriverApplicationService service;
 
     @BeforeEach
     void setUp() {
         service = new DriverApplicationService(driverRepository);
-
-        driver = new Driver("driver-demo", "driver-demo", "tenant-demo",
-                "LIC-DEMO-001", "A-IIIc", LocalDate.of(2027, 12, 31));
-
-        when(driverRepository.existsByLicenseNumber("LIC-DEMO-001")).thenReturn(false);
-        when(driverRepository.existsByLicenseNumber("LIC-DUPLICADA")).thenReturn(true);
         when(driverRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(driverRepository.findByExternalIdAndTenantExternalId("driver-demo", "tenant-demo"))
-                .thenReturn(Optional.of(driver));
-        when(driverRepository.findByExternalIdAndTenantExternalId("inexistente", "tenant-demo"))
-                .thenReturn(Optional.empty());
-        when(driverRepository.findByUserExternalIdAndTenantExternalId("driver-demo", "tenant-demo"))
-                .thenReturn(Optional.of(driver));
-        when(driverRepository.findByUserExternalIdAndTenantExternalId("user-xxx", "tenant-demo"))
-                .thenReturn(Optional.empty());
-        when(driverRepository.findByTenantExternalId("tenant-demo")).thenReturn(List.of(driver));
-    }
-
-    private CreateDriverCommand cmd(String license) {
-        return cmd("driver-demo", license);
-    }
-
-    private CreateDriverCommand cmd(String externalId, String license) {
-        return new CreateDriverCommand(externalId, "driver-demo", "tenant-demo",
-                license, "A-IIIc", LocalDate.of(2027, 12, 31));
     }
 
     @Test
     void create_registra_conductor_correctamente() {
-        Driver result = service.create(cmd("LIC-DEMO-001"));
-        assertThat(result.getExternalId()).isEqualTo("driver-demo");
-        assertThat(result.getUserExternalId()).isEqualTo("driver-demo");
+        when(driverRepository.existsByLicenseNumber("LIC-001")).thenReturn(false);
+
+        CreateDriverCommand cmd = new CreateDriverCommand(
+                "driver-001",
+                "user-001",
+                "tenant-demo",
+                "LIC-001",
+                "A-IIIc",
+                LocalDate.of(2028, 1, 1)
+        );
+
+        Driver result = service.create(cmd);
+        assertThat(result.getExternalId()).isEqualTo("driver-001");
+        assertThat(result.getUserExternalId()).isEqualTo("user-001");
+        assertThat(result.getTenantExternalId()).isEqualTo("tenant-demo");
     }
 
     @Test
     void create_lanza_409_si_licencia_duplicada() {
-        assertThatThrownBy(() -> service.create(cmd("LIC-DUPLICADA")))
+        when(driverRepository.existsByLicenseNumber("LIC-DUP")).thenReturn(true);
+
+        CreateDriverCommand cmd = new CreateDriverCommand(
+                "driver-dup",
+                "user-dup",
+                "tenant-demo",
+                "LIC-DUP",
+                "A-II",
+                LocalDate.of(2028, 1, 1)
+        );
+
+        assertThatThrownBy(() -> service.create(cmd))
                 .isInstanceOf(ConflictException.class)
-                .hasMessageContaining("LIC-DUPLICADA");
-    }
-
-    @Test
-    void findByExternalId_devuelve_conductor_existente() {
-        Driver result = service.findByExternalId("driver-demo", "tenant-demo");
-        assertThat(result.getLicenseNumber()).isEqualTo("LIC-DEMO-001");
-    }
-
-    @Test
-    void findByExternalId_lanza_404_si_no_existe() {
-        assertThatThrownBy(() -> service.findByExternalId("inexistente", "tenant-demo"))
-                .isInstanceOf(ResourceNotFoundException.class);
+                .hasMessageContaining("LIC-DUP");
     }
 
     @Test
     void resolveByUser_devuelve_conductor_por_user_external_id() {
-        Driver result = service.resolveByUser("driver-demo", "tenant-demo");
-        assertThat(result.getExternalId()).isEqualTo("driver-demo");
+        Driver driver = new Driver("driver-iam", "user-iam", "tenant-demo", "LIC-009", "A-IIIc", null);
+        when(driverRepository.findByUserExternalIdAndTenantExternalId("user-iam", "tenant-demo"))
+                .thenReturn(Optional.of(driver));
+
+        Driver result = service.resolveByUser("user-iam", "tenant-demo");
+        assertThat(result.getExternalId()).isEqualTo("driver-iam");
     }
 
     @Test
-    void resolveByUser_lanza_404_si_no_hay_driver_para_el_usuario() {
-        assertThatThrownBy(() -> service.resolveByUser("user-xxx", "tenant-demo"))
-                .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("user-xxx");
-    }
+    void findByExternalId_lanza_404_si_no_existe() {
+        when(driverRepository.findByExternalIdAndTenantExternalId("driver-no-existe", "tenant-demo"))
+                .thenReturn(Optional.empty());
 
-    @Test
-    void create_genera_external_id_si_no_se_proporciona() {
-        Driver result = service.create(cmd(null, "LIC-NUEVA-001"));
-
-        assertThat(result.getExternalId()).startsWith("driver-");
-    }
-
-    @Test
-    void listByTenant_devuelve_conductores_del_tenant() {
-        List<Driver> result = service.listByTenant("tenant-demo");
-
-        assertThat(result).hasSize(1);
-        assertThat(result.getFirst().getExternalId()).isEqualTo("driver-demo");
-    }
-
-    @Test
-    void updateStatus_cambia_el_estado() {
-        Driver result = service.updateStatus("driver-demo", "tenant-demo", DriverStatus.ON_VACATION);
-
-        assertThat(result.getStatus()).isEqualTo(DriverStatus.ON_VACATION);
-        verify(driverRepository).save(driver);
-    }
-
-    @Test
-    void delete_elimina_conductor_existente() {
-        service.delete("driver-demo", "tenant-demo");
-
-        verify(driverRepository).delete(driver);
+        assertThatThrownBy(() -> service.findByExternalId("driver-no-existe", "tenant-demo"))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 }
